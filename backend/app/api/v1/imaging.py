@@ -5,7 +5,6 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.ai.imaging_predictor import predict_pneumonia
 from app.core.deps import require_roles
 from app.db.session import get_db
 from app.models.audit_log import AuditLog
@@ -28,8 +27,7 @@ class ImagingResult(BaseModel):
     model_cv_accuracy_std: float
     warning: str | None
 
-    # Silences Pydantic's "model_*" protected-namespace warning — these
-    # fields describe the ML model's stats, not pydantic model config.
+    # Silences Pydantic's "model_*" protected-namespace warning (these fields describe the ML model's stats).
     model_config = {"protected_namespaces": ()}
 
 
@@ -51,6 +49,10 @@ async def classify_chest_xray(
     file_bytes = await file.read()
     if len(file_bytes) > MAX_FILE_SIZE_MB * 1024 * 1024:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, f"File exceeds {MAX_FILE_SIZE_MB}MB limit")
+
+    # Lazy import: torch (~hundreds of MB of RAM) loads only when this endpoint is first
+    # used, so the rest of the API stays light enough for small/free hosting tiers.
+    from app.ai.imaging_predictor import predict_pneumonia
 
     result = predict_pneumonia(file_bytes)
 

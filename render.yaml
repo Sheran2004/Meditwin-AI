@@ -1,0 +1,29 @@
+# Render Blueprint — backend only (frontend goes on Vercel, database on Neon).
+# NOTE: written from Render's documented schema but not test-deployed.
+services:
+  - type: web
+    name: meditwin-backend
+    runtime: docker
+    plan: free
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    # Dockerfile CMD doesn't run migrations; this does, and binds to Render's $PORT.
+    dockerCommand: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+    healthCheckPath: /health
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: DATABASE_URL        # Neon string, but postgresql+asyncpg:// and ?ssl=require
+        sync: false
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: CORS_ORIGINS        # e.g. ["https://your-app.vercel.app"]
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: TWILIO_ACCOUNT_SID
+        sync: false
+      - key: TWILIO_AUTH_TOKEN
+        sync: false
+      - key: TWILIO_FROM_NUMBER
+        sync: false
